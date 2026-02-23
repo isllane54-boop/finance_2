@@ -105,18 +105,21 @@ export default function App() {
       for (const line of lines) {
         const [description, amount, type, category, date] = line.split(',');
         if (description && amount) {
-          await fetch('/api/transactions', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              description: description.trim(),
-              amount: parseFloat(amount),
-              type: type.trim(),
-              category: category.trim(),
-              date: date.trim(),
-              is_recurring: false
-            })
-          });
+          const cleanAmount = parseFloat(amount.replace(',', '.'));
+          if (!isNaN(cleanAmount)) {
+            await fetch('/api/transactions', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                description: description.trim(),
+                amount: cleanAmount,
+                type: type.trim(),
+                category: category.trim(),
+                date: date.trim(),
+                is_recurring: false
+              })
+            });
+          }
         }
       }
       fetchData();
@@ -155,12 +158,27 @@ export default function App() {
     fetchData();
   }, []);
 
+  const openModal = (type: 'transaction' | 'investment' | 'goal' | 'budget') => {
+    setModalType(type);
+    setIsRecurringChecked(false);
+    setIsModalOpen(true);
+  };
+
   const handleAddTransaction = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    
+    const amountStr = (formData.get('amount') as string).replace(',', '.');
+    const amount = parseFloat(amountStr);
+    
+    if (isNaN(amount)) {
+      alert("Por favor, insira um valor válido.");
+      return;
+    }
+
     const data = {
       description: formData.get('description'),
-      amount: parseFloat(formData.get('amount') as string),
+      amount: amount,
       type: formData.get('type'),
       category: formData.get('category'),
       date: formData.get('date'),
@@ -169,70 +187,133 @@ export default function App() {
       start_date: isRecurringChecked ? formData.get('start_date') : formData.get('date')
     };
 
-    await fetch('/api/transactions', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    setIsModalOpen(false);
-    fetchData();
+    try {
+      const response = await fetch('/api/transactions', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) throw new Error('Falha ao salvar transação');
+      
+      setIsModalOpen(false);
+      fetchData();
+    } catch (error) {
+      console.error("Error adding transaction:", error);
+      alert("Erro ao salvar transação. Verifique os dados e tente novamente.");
+    }
   };
 
   const handleAddInvestment = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    
+    const amountStr = (formData.get('amount') as string).replace(',', '.');
+    const amount = parseFloat(amountStr);
+    const returnStr = (formData.get('expected_return') as string).replace(',', '.');
+    const expected_return = parseFloat(returnStr);
+
+    if (isNaN(amount) || isNaN(expected_return)) {
+      alert("Por favor, insira valores válidos.");
+      return;
+    }
+
     const data = {
       name: formData.get('name'),
-      amount: parseFloat(formData.get('amount') as string),
+      amount: amount,
       type: formData.get('type'),
-      expected_return: parseFloat(formData.get('expected_return') as string),
+      expected_return: expected_return,
       date: formData.get('date')
     };
 
-    await fetch('/api/investments', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    setIsModalOpen(false);
-    fetchData();
+    try {
+      const response = await fetch('/api/investments', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) throw new Error('Falha ao salvar investimento');
+      
+      setIsModalOpen(false);
+      fetchData();
+    } catch (error) {
+      console.error("Error adding investment:", error);
+      alert("Erro ao salvar investimento.");
+    }
   };
 
   const handleAddGoal = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    
+    const targetStr = (formData.get('target_amount') as string).replace(',', '.');
+    const currentStr = (formData.get('current_amount') as string).replace(',', '.');
+    const target_amount = parseFloat(targetStr);
+    const current_amount = parseFloat(currentStr);
+
+    if (isNaN(target_amount) || isNaN(current_amount)) {
+      alert("Por favor, insira valores válidos.");
+      return;
+    }
+
     const data = {
       name: formData.get('name'),
-      target_amount: parseFloat(formData.get('target_amount') as string),
-      current_amount: parseFloat(formData.get('current_amount') as string),
+      target_amount: target_amount,
+      current_amount: current_amount,
       deadline: formData.get('deadline'),
       category: formData.get('category')
     };
 
-    await fetch('/api/goals', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    setIsModalOpen(false);
-    fetchData();
+    try {
+      const response = await fetch('/api/goals', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) throw new Error('Falha ao salvar meta');
+      
+      setIsModalOpen(false);
+      fetchData();
+    } catch (error) {
+      console.error("Error adding goal:", error);
+      alert("Erro ao salvar meta.");
+    }
   };
 
   const handleAddBudget = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     const formData = new FormData(e.currentTarget);
+    
+    const limitStr = (formData.get('limit_amount') as string).replace(',', '.');
+    const limit_amount = parseFloat(limitStr);
+
+    if (isNaN(limit_amount)) {
+      alert("Por favor, insira um valor válido.");
+      return;
+    }
+
     const data = {
       category: formData.get('category'),
-      limit_amount: parseFloat(formData.get('limit_amount') as string)
+      limit_amount: limit_amount
     };
 
-    await fetch('/api/budgets', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(data)
-    });
-    setIsModalOpen(false);
-    fetchData();
+    try {
+      const response = await fetch('/api/budgets', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data)
+      });
+      
+      if (!response.ok) throw new Error('Falha ao salvar orçamento');
+      
+      setIsModalOpen(false);
+      fetchData();
+    } catch (error) {
+      console.error("Error adding budget:", error);
+      alert("Erro ao salvar orçamento.");
+    }
   };
 
   const deleteTransaction = async (id: number) => {
@@ -410,7 +491,7 @@ export default function App() {
                   </button>
                 </div>
                 <button 
-                  onClick={() => { setModalType('transaction'); setIsModalOpen(true); }}
+                  onClick={() => openModal('transaction')}
                   className="w-full bg-indigo-600 hover:bg-indigo-700 text-white rounded-xl py-3 px-4 flex items-center justify-center gap-2 transition-all shadow-lg shadow-indigo-200 font-medium"
                 >
                   <Plus size={20} />
@@ -425,7 +506,7 @@ export default function App() {
                 <MobileNavItem icon={<ArrowDownCircle />} label="Extrato" active={activeTab === 'transactions'} onClick={() => setActiveTab('transactions')} />
                 <div className="relative -top-8">
                   <button 
-                    onClick={() => { setModalType('transaction'); setIsModalOpen(true); }}
+                    onClick={() => openModal('transaction')}
                     className="w-16 h-16 bg-indigo-600 text-white rounded-2xl shadow-xl shadow-indigo-200 flex items-center justify-center active:scale-90 transition-transform"
                   >
                     <Plus size={32} />
@@ -666,7 +747,7 @@ export default function App() {
                         <FileUp size={20} /> Importar CSV
                         <input type="file" accept=".csv" className="hidden" onChange={handleImportCSV} />
                       </label>
-                      <button onClick={() => { setModalType('transaction'); setIsModalOpen(true); }} className="flex-1 bg-indigo-600 text-white px-4 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-100 dark:shadow-none">
+                      <button onClick={() => openModal('transaction')} className="flex-1 bg-indigo-600 text-white px-4 py-3 rounded-xl text-sm font-bold flex items-center justify-center gap-2 shadow-lg shadow-indigo-100 dark:shadow-none">
                         <Plus size={20} /> Adicionar
                       </button>
                     </div>
@@ -775,7 +856,7 @@ export default function App() {
                         <BarChart3 size={18} className="text-slate-400" />
                         Orçamentos Ativos
                       </h3>
-                      <button onClick={() => { setModalType('budget'); setIsModalOpen(true); }} className="text-indigo-600 text-xs font-bold hover:underline">Configurar</button>
+                      <button onClick={() => openModal('budget')} className="text-indigo-600 text-xs font-bold hover:underline">Configurar</button>
                     </div>
                     <div className="space-y-4">
                       {budgets.length > 0 ? budgets.map(budget => {
@@ -844,7 +925,7 @@ export default function App() {
               <div className="glass-card p-6">
                 <div className="flex justify-between items-center mb-6">
                   <h3 className="font-bold text-lg">Meus Ativos</h3>
-                  <button onClick={() => { setModalType('investment'); setIsModalOpen(true); }} className="bg-indigo-600 text-white px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2 shadow-md shadow-indigo-100">
+                  <button onClick={() => openModal('investment')} className="bg-indigo-600 text-white px-4 py-3 rounded-xl text-sm font-bold flex items-center gap-2 shadow-md shadow-indigo-100">
                     <Plus size={20} /> Novo Ativo
                   </button>
                 </div>
@@ -1035,7 +1116,7 @@ export default function App() {
             >
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold">Minhas Metas Financeiras</h3>
-                <button onClick={() => { setModalType('goal'); setIsModalOpen(true); }} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-indigo-100 dark:shadow-none">
+                <button onClick={() => openModal('goal')} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-indigo-100 dark:shadow-none">
                   <Plus size={18} /> Nova Meta
                 </button>
               </div>
@@ -1055,7 +1136,7 @@ export default function App() {
             >
               <div className="flex justify-between items-center">
                 <h3 className="text-xl font-bold">Gestão de Orçamentos</h3>
-                <button onClick={() => { setModalType('budget'); setIsModalOpen(true); }} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-indigo-100 dark:shadow-none">
+                <button onClick={() => openModal('budget')} className="bg-indigo-600 text-white px-4 py-2 rounded-xl text-sm font-bold flex items-center gap-2 shadow-lg shadow-indigo-100 dark:shadow-none">
                   <Plus size={18} /> Novo Orçamento
                 </button>
               </div>

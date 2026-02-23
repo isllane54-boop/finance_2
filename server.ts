@@ -62,11 +62,19 @@ async function startServer() {
   });
 
   app.post("/api/transactions", (req, res) => {
-    const { description, amount, type, category, date, is_recurring, installments, start_date } = req.body;
-    const info = db.prepare(
-      "INSERT INTO transactions (description, amount, type, category, date, is_recurring, installments, start_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
-    ).run(description, amount, type, category, date, is_recurring ? 1 : 0, installments || 1, start_date || date);
-    res.json({ id: info.lastInsertRowid });
+    try {
+      const { description, amount, type, category, date, is_recurring, installments, start_date } = req.body;
+      if (!description || isNaN(amount) || !type || !category || !date) {
+        return res.status(400).json({ error: "Dados incompletos ou inválidos" });
+      }
+      const info = db.prepare(
+        "INSERT INTO transactions (description, amount, type, category, date, is_recurring, installments, start_date) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+      ).run(description, amount, type, category, date, is_recurring ? 1 : 0, installments || 1, start_date || date);
+      res.json({ id: info.lastInsertRowid });
+    } catch (error) {
+      console.error("DB Error:", error);
+      res.status(500).json({ error: "Erro ao salvar transação" });
+    }
   });
 
   app.delete("/api/transactions/:id", (req, res) => {
@@ -80,11 +88,19 @@ async function startServer() {
   });
 
   app.post("/api/investments", (req, res) => {
-    const { name, amount, type, expected_return, date } = req.body;
-    const info = db.prepare(
-      "INSERT INTO investments (name, amount, type, expected_return, date) VALUES (?, ?, ?, ?, ?)"
-    ).run(name, amount, type, expected_return, date);
-    res.json({ id: info.lastInsertRowid });
+    try {
+      const { name, amount, type, expected_return, date } = req.body;
+      if (!name || isNaN(amount) || !type || !date) {
+        return res.status(400).json({ error: "Dados incompletos ou inválidos" });
+      }
+      const info = db.prepare(
+        "INSERT INTO investments (name, amount, type, expected_return, date) VALUES (?, ?, ?, ?, ?)"
+      ).run(name, amount, type, expected_return, date);
+      res.json({ id: info.lastInsertRowid });
+    } catch (error) {
+      console.error("DB Error:", error);
+      res.status(500).json({ error: "Erro ao salvar investimento" });
+    }
   });
 
   app.get("/api/summary", (req, res) => {
@@ -103,11 +119,19 @@ async function startServer() {
   });
 
   app.post("/api/goals", (req, res) => {
-    const { name, target_amount, current_amount, deadline, category } = req.body;
-    const info = db.prepare(
-      "INSERT INTO goals (name, target_amount, current_amount, deadline, category) VALUES (?, ?, ?, ?, ?)"
-    ).run(name, target_amount, current_amount || 0, deadline, category);
-    res.json({ id: info.lastInsertRowid });
+    try {
+      const { name, target_amount, current_amount, deadline, category } = req.body;
+      if (!name || isNaN(target_amount) || !deadline || !category) {
+        return res.status(400).json({ error: "Dados incompletos ou inválidos" });
+      }
+      const info = db.prepare(
+        "INSERT INTO goals (name, target_amount, current_amount, deadline, category) VALUES (?, ?, ?, ?, ?)"
+      ).run(name, target_amount, current_amount || 0, deadline, category);
+      res.json({ id: info.lastInsertRowid });
+    } catch (error) {
+      console.error("DB Error:", error);
+      res.status(500).json({ error: "Erro ao salvar meta" });
+    }
   });
 
   app.delete("/api/goals/:id", (req, res) => {
@@ -121,11 +145,24 @@ async function startServer() {
   });
 
   app.post("/api/budgets", (req, res) => {
-    const { category, limit_amount } = req.body;
-    const info = db.prepare(
-      "INSERT OR REPLACE INTO budgets (category, limit_amount) VALUES (?, ?)"
-    ).run(category, limit_amount);
-    res.json({ id: info.lastInsertRowid });
+    try {
+      const { category, limit_amount } = req.body;
+      if (!category || isNaN(limit_amount)) {
+        return res.status(400).json({ error: "Dados incompletos ou inválidos" });
+      }
+      const info = db.prepare(
+        "INSERT OR REPLACE INTO budgets (category, limit_amount) VALUES (?, ?)"
+      ).run(category, limit_amount);
+      res.json({ id: info.lastInsertRowid });
+    } catch (error) {
+      console.error("DB Error:", error);
+      res.status(500).json({ error: "Erro ao salvar orçamento" });
+    }
+  });
+
+  app.delete("/api/budgets/:id", (req, res) => {
+    db.prepare("DELETE FROM budgets WHERE id = ?").run(req.params.id);
+    res.sendStatus(200);
   });
 
   // Vite middleware for development
